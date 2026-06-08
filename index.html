@@ -304,22 +304,26 @@
 
   .canvas-scroll {
     flex: 1;
-    overflow: auto;
+    overflow: hidden;
     display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding: 16px;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
   }
 
   .canvas-container {
     position: relative;
     display: inline-block;
     cursor: crosshair;
+    max-width: 100%;
+    max-height: 100%;
   }
 
   #plotCanvas {
     display: block;
-    max-width: none;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
   }
 
   #overlayCanvas {
@@ -571,7 +575,7 @@
         <button class="mode-btn active" id="modeCalibrate">Calibrate</button>
         <button class="mode-btn" id="modeDigitize">Digitize</button>
       </div>
-      <div class="canvas-scroll">
+      <div class="canvas-scroll" id="canvasScroll">
         <div class="canvas-container" id="canvasContainer">
           <canvas id="plotCanvas"></canvas>
           <canvas id="overlayCanvas"></canvas>
@@ -692,10 +696,35 @@ function loadImage(file) {
     plotCtx.drawImage(img, 0, 0);
     emptyState.style.display = 'none';
     plotArea.style.display   = 'flex';
+    fitCanvasToScroll();
     redraw();
   };
   img.src = url;
 }
+
+function fitCanvasToScroll() {
+  if (!state.image) return;
+  const scroll = document.getElementById('canvasScroll');
+  const availW = scroll.clientWidth  - 24;
+  const availH = scroll.clientHeight - 24;
+  const imgAspect = state.image.width / state.image.height;
+  const areaAspect = availW / availH;
+  let displayW, displayH;
+  if (imgAspect > areaAspect) {
+    displayW = availW;
+    displayH = availW / imgAspect;
+  } else {
+    displayH = availH;
+    displayW = availH * imgAspect;
+  }
+  plotCanvas.style.width  = displayW + 'px';
+  plotCanvas.style.height = displayH + 'px';
+  overlayCanvas.style.width  = displayW + 'px';
+  overlayCanvas.style.height = displayH + 'px';
+}
+
+new ResizeObserver(() => fitCanvasToScroll())
+  .observe(document.getElementById('canvasScroll'));
 
 // ── Scale toggles ──────────────────────────────────────────────────────────
 document.querySelectorAll('.scale-btn').forEach(btn => {
@@ -838,6 +867,32 @@ canvasContainer.addEventListener('click', e => {
       renderDataTable();
       redraw();
     }
+  }
+});
+
+// ── Right-click to delete nearest point ───────────────────────────────────
+canvasContainer.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (!state.image) return;
+  const rect = plotCanvas.getBoundingClientRect();
+  const scaleX = plotCanvas.width  / rect.width;
+  const scaleY = plotCanvas.height / rect.height;
+  const px = (e.clientX - rect.left) * scaleX;
+  const py = (e.clientY - rect.top)  * scaleY;
+  const displayScale = plotCanvas.width / rect.width; // image px per display px
+  const HIT_RADIUS = 10 * displayScale; // ~10 display pixels
+  let best = null, bestDist = Infinity;
+  state.curves.forEach(curve => {
+    curve.points.forEach((pt, idx) => {
+      const d = Math.hypot(pt.px - px, pt.py - py);
+      if (d < HIT_RADIUS && d < bestDist) { best = { curve, idx }; bestDist = d; }
+    });
+  });
+  if (best) {
+    best.curve.points.splice(best.idx, 1);
+    renderCurveList();
+    renderDataTable();
+    redraw();
   }
 });
 
