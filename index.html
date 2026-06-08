@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plot Digitizer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    min-height: 100vh;
+  }
+
+  header {
+    background: #1a1d2e;
+    border-bottom: 1px solid #2d3148;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  header svg { color: #6366f1; }
+
+  header h1 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #e2e8f0;
+  }
+
+  header span {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-left: 4px;
+  }
+
+  .container {
+    display: flex;
+    height: calc(100vh - 53px);
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 320px;
+    flex-shrink: 0;
+    background: #1a1d2e;
+    border-right: 1px solid #2d3148;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .section {
+    padding: 16px;
+    border-bottom: 1px solid #2d3148;
+  }
+
+  .section-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .section-title .badge {
+    background: #6366f1;
+    color: #fff;
+    border-radius: 9999px;
+    width: 18px;
+    height: 18px;
+    font-size: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+
+  /* upload */
+  .upload-area {
+    border: 2px dashed #2d3148;
+    border-radius: 8px;
+    padding: 24px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .upload-area:hover, .upload-area.drag-over {
+    border-color: #6366f1;
+    background: rgba(99,102,241,0.06);
+  }
+
+  .upload-area p { font-size: 0.8rem; color: #94a3b8; margin-top: 8px; }
+  .upload-area strong { color: #6366f1; }
+  #fileInput { display: none; }
+
+  /* axis config */
+  .axis-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .field label {
+    display: block;
+    font-size: 0.7rem;
+    color: #94a3b8;
+    margin-bottom: 4px;
+  }
+
+  .field input[type="number"], .field input[type="text"], .field select {
+    width: 100%;
+    background: #0f1117;
+    border: 1px solid #2d3148;
+    border-radius: 6px;
+    padding: 6px 8px;
+    color: #e2e8f0;
+    font-size: 0.8rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus, .field select:focus { border-color: #6366f1; }
+
+  .scale-toggle {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .scale-btn {
+    flex: 1;
+    padding: 5px;
+    font-size: 0.72rem;
+    border: 1px solid #2d3148;
+    border-radius: 5px;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .scale-btn.active {
+    background: #6366f1;
+    border-color: #6366f1;
+    color: #fff;
+    font-weight: 600;
+  }
+
+  /* calibration */
+  .cal-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .cal-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #0f1117;
+    border: 1px solid #2d3148;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+  }
+
+  .cal-item .label { color: #94a3b8; font-size: 0.7rem; }
+  .cal-item .status { font-size: 0.7rem; }
+  .cal-item .status.done { color: #22c55e; }
+  .cal-item .status.pending { color: #f59e0b; }
+
+  .cal-btn {
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    border-radius: 5px;
+    border: 1px solid #6366f1;
+    background: transparent;
+    color: #6366f1;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .cal-btn:hover { background: #6366f1; color: #fff; }
+  .cal-btn.active { background: #6366f1; color: #fff; }
+
+  /* curves */
+  .curve-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .curve-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #0f1117;
+    border: 1px solid #2d3148;
+    border-radius: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+
+  .curve-item.selected { border-color: #6366f1; }
+
+  .curve-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .curve-name { font-size: 0.8rem; flex: 1; min-width: 0; }
+  .curve-count { font-size: 0.7rem; color: #64748b; }
+
+  .curve-del {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0 2px;
+    transition: color 0.15s;
+  }
+
+  .curve-del:hover { color: #ef4444; }
+
+  .add-curve-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .add-curve-row input {
+    flex: 1;
+    background: #0f1117;
+    border: 1px solid #2d3148;
+    border-radius: 6px;
+    padding: 6px 8px;
+    color: #e2e8f0;
+    font-size: 0.8rem;
+    outline: none;
+  }
+
+  .add-curve-row input:focus { border-color: #6366f1; }
+
+  .btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: none;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: #6366f1; color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #5254cc; }
+  .btn-success { background: #22c55e; color: #fff; }
+  .btn-success:hover:not(:disabled) { background: #16a34a; }
+  .btn-outline { background: transparent; border: 1px solid #2d3148; color: #94a3b8; }
+  .btn-outline:hover:not(:disabled) { border-color: #6366f1; color: #6366f1; }
+
+  /* mode bar */
+  .mode-bar {
+    display: flex;
+    gap: 6px;
+    padding: 12px 16px;
+    background: #1a1d2e;
+    border-bottom: 1px solid #2d3148;
+  }
+
+  .mode-btn {
+    flex: 1;
+    padding: 7px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid #2d3148;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .mode-btn.active {
+    background: #6366f1;
+    border-color: #6366f1;
+    color: #fff;
+  }
+
+  /* canvas area */
+  .canvas-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #0a0c14;
+  }
+
+  .canvas-scroll {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 16px;
+  }
+
+  .canvas-container {
+    position: relative;
+    display: inline-block;
+    cursor: crosshair;
+  }
+
+  #plotCanvas {
+    display: block;
+    max-width: none;
+  }
+
+  #overlayCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+  }
+
+  /* empty state */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #2d3148;
+    gap: 12px;
+  }
+
+  .empty-state svg { width: 64px; height: 64px; }
+  .empty-state p { font-size: 0.9rem; }
+
+  /* data panel */
+  .data-panel {
+    width: 280px;
+    flex-shrink: 0;
+    background: #1a1d2e;
+    border-left: 1px solid #2d3148;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .data-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #2d3148;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .data-header h2 { font-size: 0.85rem; font-weight: 600; }
+
+  .data-scroll { flex: 1; overflow-y: auto; }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+  }
+
+  .data-table th {
+    position: sticky;
+    top: 0;
+    background: #1a1d2e;
+    padding: 8px 12px;
+    text-align: left;
+    color: #64748b;
+    font-weight: 600;
+    border-bottom: 1px solid #2d3148;
+  }
+
+  .data-table td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #1a1d2e;
+    color: #cbd5e1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .data-table tr:hover td { background: rgba(99,102,241,0.08); }
+
+  .data-table .del-pt {
+    background: transparent;
+    border: none;
+    color: #374151;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0;
+    transition: color 0.15s;
+  }
+
+  .data-table .del-pt:hover { color: #ef4444; }
+
+  .data-actions {
+    padding: 12px 16px;
+    border-top: 1px solid #2d3148;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* tooltip */
+  #tooltip {
+    position: fixed;
+    background: #1e2235;
+    border: 1px solid #3d4267;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.72rem;
+    color: #e2e8f0;
+    pointer-events: none;
+    display: none;
+    z-index: 100;
+    white-space: nowrap;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2d3148; border-radius: 3px; }
+
+  .info-bar {
+    padding: 6px 16px;
+    background: #131625;
+    border-top: 1px solid #2d3148;
+    font-size: 0.7rem;
+    color: #64748b;
+    display: flex;
+    gap: 16px;
+  }
+
+  .info-bar span { display: flex; align-items: center; gap: 4px; }
+
+  .color-swatch {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+  </svg>
+  <h1>Plot Digitizer <span>— extract data from charts</span></h1>
+</header>
+
+<div class="container">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- 1. Upload -->
+    <div class="section">
+      <div class="section-title"><span class="badge">1</span> Upload Image</div>
+      <div class="upload-area" id="uploadArea">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        <p><strong>Click or drag</strong> an image here<br>PNG, JPG, BMP, SVG…</p>
+      </div>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <!-- 2. Axis config -->
+    <div class="section">
+      <div class="section-title"><span class="badge">2</span> Axis Configuration</div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:4px">X axis scale</div>
+        <div class="scale-toggle">
+          <button class="scale-btn active" data-axis="x" data-scale="linear">Linear</button>
+          <button class="scale-btn" data-axis="x" data-scale="log">Logarithmic</button>
+        </div>
+      </div>
+      <div class="axis-grid">
+        <div class="field"><label>X min</label><input type="number" id="xMin" placeholder="0"></div>
+        <div class="field"><label>X max</label><input type="number" id="xMax" placeholder="100"></div>
+      </div>
+      <div style="margin-top:10px;margin-bottom:10px">
+        <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:4px">Y axis scale</div>
+        <div class="scale-toggle">
+          <button class="scale-btn active" data-axis="y" data-scale="linear">Linear</button>
+          <button class="scale-btn" data-axis="y" data-scale="log">Logarithmic</button>
+        </div>
+      </div>
+      <div class="axis-grid">
+        <div class="field"><label>Y min</label><input type="number" id="yMin" placeholder="0"></div>
+        <div class="field"><label>Y max</label><input type="number" id="yMax" placeholder="100"></div>
+      </div>
+    </div>
+
+    <!-- 3. Calibration -->
+    <div class="section">
+      <div class="section-title"><span class="badge">3</span> Calibration Points</div>
+      <p style="font-size:0.72rem;color:#64748b;margin-bottom:10px">Click each button, then click the corresponding point on the plot.</p>
+      <div class="cal-list">
+        <div class="cal-item">
+          <div>
+            <div class="label">X min point</div>
+            <div class="status pending" id="cal-xmin-status">Not set</div>
+          </div>
+          <button class="cal-btn" id="cal-xmin-btn" data-cal="xmin">Set</button>
+        </div>
+        <div class="cal-item">
+          <div>
+            <div class="label">X max point</div>
+            <div class="status pending" id="cal-xmax-status">Not set</div>
+          </div>
+          <button class="cal-btn" id="cal-xmax-btn" data-cal="xmax">Set</button>
+        </div>
+        <div class="cal-item">
+          <div>
+            <div class="label">Y min point</div>
+            <div class="status pending" id="cal-ymin-status">Not set</div>
+          </div>
+          <button class="cal-btn" id="cal-ymin-btn" data-cal="ymin">Set</button>
+        </div>
+        <div class="cal-item">
+          <div>
+            <div class="label">Y max point</div>
+            <div class="status pending" id="cal-ymax-status">Not set</div>
+          </div>
+          <button class="cal-btn" id="cal-ymax-btn" data-cal="ymax">Set</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Curves -->
+    <div class="section">
+      <div class="section-title"><span class="badge">4</span> Curves</div>
+      <div class="curve-list" id="curveList"></div>
+      <div class="add-curve-row">
+        <input type="text" id="newCurveName" placeholder="Curve name…" maxlength="30">
+        <button class="btn btn-primary" id="addCurveBtn">+ Add</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MAIN -->
+  <div class="canvas-wrap" id="canvasWrap">
+    <div class="empty-state" id="emptyState">
+      <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="4" y="4" width="56" height="56" rx="6"/>
+        <polyline points="4 48 20 32 32 40 44 20 60 28"/>
+        <circle cx="20" cy="32" r="3"/>
+        <circle cx="32" cy="40" r="3"/>
+        <circle cx="44" cy="20" r="3"/>
+      </svg>
+      <p>Upload a plot image to get started</p>
+    </div>
+
+    <div id="plotArea" style="display:none;flex-direction:column;height:100%">
+      <div class="mode-bar">
+        <button class="mode-btn active" id="modeCalibrate">Calibrate</button>
+        <button class="mode-btn" id="modeDigitize">Digitize</button>
+      </div>
+      <div class="canvas-scroll">
+        <div class="canvas-container" id="canvasContainer">
+          <canvas id="plotCanvas"></canvas>
+          <canvas id="overlayCanvas"></canvas>
+        </div>
+      </div>
+      <div class="info-bar" id="infoBar">
+        <span id="coordDisplay">x: —  y: —</span>
+        <span id="modeHint">Mode: Calibration</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- DATA PANEL -->
+  <div class="data-panel">
+    <div class="data-header">
+      <h2>Extracted Points</h2>
+      <span id="totalCount" style="font-size:0.72rem;color:#64748b">0 pts</span>
+    </div>
+    <div class="data-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Curve</th>
+            <th>X</th>
+            <th>Y</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="dataTableBody"></tbody>
+      </table>
+    </div>
+    <div class="data-actions">
+      <button class="btn btn-success" id="exportCsvBtn" disabled>Download CSV</button>
+      <button class="btn btn-outline" id="clearAllBtn" disabled>Clear All Points</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const state = {
+  image: null,
+  scale: { x: 'linear', y: 'linear' },
+  axisValues: { xMin: 0, xMax: 100, yMin: 0, yMax: 100 },
+  calibration: { xmin: null, xmax: null, ymin: null, ymax: null },
+  curves: [],
+  activeCurveId: null,
+  mode: 'calibrate',   // 'calibrate' | 'digitize'
+  calTarget: null,     // which calibration point is being set
+  zoom: 1,
+};
+
+const CURVE_COLORS = [
+  '#f43f5e','#3b82f6','#22c55e','#f59e0b',
+  '#8b5cf6','#06b6d4','#ec4899','#84cc16',
+];
+
+let nextCurveId = 1;
+let nextColor = 0;
+
+// ── DOM refs ───────────────────────────────────────────────────────────────
+const fileInput       = document.getElementById('fileInput');
+const uploadArea      = document.getElementById('uploadArea');
+const plotCanvas      = document.getElementById('plotCanvas');
+const overlayCanvas   = document.getElementById('overlayCanvas');
+const canvasContainer = document.getElementById('canvasContainer');
+const emptyState      = document.getElementById('emptyState');
+const plotArea        = document.getElementById('plotArea');
+const curveList       = document.getElementById('curveList');
+const newCurveName    = document.getElementById('newCurveName');
+const addCurveBtn     = document.getElementById('addCurveBtn');
+const dataTableBody   = document.getElementById('dataTableBody');
+const totalCount      = document.getElementById('totalCount');
+const exportCsvBtn    = document.getElementById('exportCsvBtn');
+const clearAllBtn     = document.getElementById('clearAllBtn');
+const coordDisplay    = document.getElementById('coordDisplay');
+const modeHint        = document.getElementById('modeHint');
+const tooltip         = document.getElementById('tooltip');
+const modeCalibrate   = document.getElementById('modeCalibrate');
+const modeDigitize    = document.getElementById('modeDigitize');
+
+const plotCtx    = plotCanvas.getContext('2d');
+const overlayCtx = overlayCanvas.getContext('2d');
+
+// ── Image loading ──────────────────────────────────────────────────────────
+uploadArea.addEventListener('click', () => fileInput.click());
+
+uploadArea.addEventListener('dragover', e => {
+  e.preventDefault();
+  uploadArea.classList.add('drag-over');
+});
+
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+
+uploadArea.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadArea.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImage(file);
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) loadImage(fileInput.files[0]);
+});
+
+function loadImage(file) {
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    state.image = img;
+    plotCanvas.width  = img.width;
+    plotCanvas.height = img.height;
+    overlayCanvas.width  = img.width;
+    overlayCanvas.height = img.height;
+    plotCtx.drawImage(img, 0, 0);
+    emptyState.style.display = 'none';
+    plotArea.style.display   = 'flex';
+    redraw();
+  };
+  img.src = url;
+}
+
+// ── Scale toggles ──────────────────────────────────────────────────────────
+document.querySelectorAll('.scale-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const axis  = btn.dataset.axis;
+    const scale = btn.dataset.scale;
+    state.scale[axis] = scale;
+    document.querySelectorAll(`.scale-btn[data-axis="${axis}"]`).forEach(b => {
+      b.classList.toggle('active', b.dataset.scale === scale);
+    });
+    recalcAll();
+  });
+});
+
+// ── Axis value inputs ──────────────────────────────────────────────────────
+['xMin','xMax','yMin','yMax'].forEach(id => {
+  document.getElementById(id).addEventListener('input', e => {
+    const key = id.charAt(0).toLowerCase() + id.slice(1);
+    const v = parseFloat(e.target.value);
+    if (!isNaN(v)) { state.axisValues[key] = v; recalcAll(); }
+  });
+});
+
+// ── Calibration ────────────────────────────────────────────────────────────
+document.querySelectorAll('.cal-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const key = btn.dataset.cal;
+    if (state.calTarget === key) {
+      // deactivate
+      state.calTarget = null;
+      btn.classList.remove('active');
+    } else {
+      // deactivate previous
+      if (state.calTarget) {
+        document.querySelector(`.cal-btn[data-cal="${state.calTarget}"]`).classList.remove('active');
+      }
+      state.calTarget = key;
+      btn.classList.add('active');
+      setMode('calibrate');
+    }
+  });
+});
+
+// ── Curves ─────────────────────────────────────────────────────────────────
+addCurveBtn.addEventListener('click', addCurve);
+newCurveName.addEventListener('keydown', e => { if (e.key === 'Enter') addCurve(); });
+
+function addCurve() {
+  const name = newCurveName.value.trim() || `Curve ${nextCurveId}`;
+  const color = CURVE_COLORS[nextColor % CURVE_COLORS.length];
+  nextColor++;
+  const curve = { id: nextCurveId++, name, color, points: [] };
+  state.curves.push(curve);
+  state.activeCurveId = curve.id;
+  newCurveName.value = '';
+  renderCurveList();
+  redraw();
+}
+
+function renderCurveList() {
+  curveList.innerHTML = '';
+  state.curves.forEach(curve => {
+    const item = document.createElement('div');
+    item.className = 'curve-item' + (curve.id === state.activeCurveId ? ' selected' : '');
+    item.innerHTML = `
+      <span class="curve-dot" style="background:${curve.color}"></span>
+      <span class="curve-name">${escHtml(curve.name)}</span>
+      <span class="curve-count">${curve.points.length} pt${curve.points.length !== 1 ? 's' : ''}</span>
+      <button class="curve-del" data-id="${curve.id}" title="Delete curve">×</button>
+    `;
+    item.addEventListener('click', e => {
+      if (e.target.classList.contains('curve-del')) return;
+      state.activeCurveId = curve.id;
+      renderCurveList();
+    });
+    item.querySelector('.curve-del').addEventListener('click', () => {
+      state.curves = state.curves.filter(c => c.id !== curve.id);
+      if (state.activeCurveId === curve.id) {
+        state.activeCurveId = state.curves.length ? state.curves[state.curves.length - 1].id : null;
+      }
+      renderCurveList();
+      renderDataTable();
+      redraw();
+    });
+    curveList.appendChild(item);
+  });
+}
+
+// ── Mode switching ─────────────────────────────────────────────────────────
+modeCalibrate.addEventListener('click', () => setMode('calibrate'));
+modeDigitize.addEventListener('click', () => setMode('digitize'));
+
+function setMode(m) {
+  state.mode = m;
+  modeCalibrate.classList.toggle('active', m === 'calibrate');
+  modeDigitize.classList.toggle('active', m === 'digitize');
+  modeHint.textContent = m === 'calibrate' ? 'Mode: Calibration' : 'Mode: Digitize';
+  if (m !== 'calibrate' && state.calTarget) {
+    document.querySelector(`.cal-btn[data-cal="${state.calTarget}"]`).classList.remove('active');
+    state.calTarget = null;
+  }
+}
+
+// ── Canvas click ───────────────────────────────────────────────────────────
+canvasContainer.addEventListener('click', e => {
+  if (!state.image) return;
+  const rect = plotCanvas.getBoundingClientRect();
+  const scaleX = plotCanvas.width  / rect.width;
+  const scaleY = plotCanvas.height / rect.height;
+  const px = (e.clientX - rect.left) * scaleX;
+  const py = (e.clientY - rect.top)  * scaleY;
+
+  if (state.mode === 'calibrate' && state.calTarget) {
+    state.calibration[state.calTarget] = { px, py };
+    const statusEl = document.getElementById(`cal-${state.calTarget}-status`);
+    statusEl.textContent = `(${px.toFixed(0)}, ${py.toFixed(0)})`;
+    statusEl.classList.remove('pending');
+    statusEl.classList.add('done');
+    document.querySelector(`.cal-btn[data-cal="${state.calTarget}"]`).classList.remove('active');
+    state.calTarget = null;
+    recalcAll();
+    redraw();
+    return;
+  }
+
+  if (state.mode === 'digitize') {
+    if (!state.activeCurveId) {
+      alert('Please add and select a curve first.');
+      return;
+    }
+    if (!isCalibrated()) {
+      alert('Please set all 4 calibration points first.');
+      return;
+    }
+    const { x, y } = pixelToData(px, py);
+    const curve = state.curves.find(c => c.id === state.activeCurveId);
+    if (curve) {
+      curve.points.push({ px, py, x, y });
+      renderCurveList();
+      renderDataTable();
+      redraw();
+    }
+  }
+});
+
+// ── Mouse move ─────────────────────────────────────────────────────────────
+canvasContainer.addEventListener('mousemove', e => {
+  if (!state.image) return;
+  const rect = plotCanvas.getBoundingClientRect();
+  const scaleX = plotCanvas.width  / rect.width;
+  const scaleY = plotCanvas.height / rect.height;
+  const px = (e.clientX - rect.left) * scaleX;
+  const py = (e.clientY - rect.top)  * scaleY;
+
+  if (isCalibrated()) {
+    const { x, y } = pixelToData(px, py);
+    coordDisplay.textContent = `x: ${fmtNum(x)}  y: ${fmtNum(y)}`;
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY - 28) + 'px';
+    tooltip.textContent = `x: ${fmtNum(x)},  y: ${fmtNum(y)}`;
+  } else {
+    coordDisplay.textContent = `px: ${Math.round(px)}  py: ${Math.round(py)}`;
+    tooltip.style.display = 'none';
+  }
+});
+
+canvasContainer.addEventListener('mouseleave', () => {
+  tooltip.style.display = 'none';
+  coordDisplay.textContent = 'x: —  y: —';
+});
+
+// ── Coordinate math ────────────────────────────────────────────────────────
+function isCalibrated() {
+  const c = state.calibration;
+  return c.xmin && c.xmax && c.ymin && c.ymax;
+}
+
+function pixelToData(px, py) {
+  const c = state.calibration;
+  const av = state.axisValues;
+
+  // X
+  let x;
+  const xFrac = (px - c.xmin.px) / (c.xmax.px - c.xmin.px);
+  if (state.scale.x === 'log') {
+    const logMin = Math.log10(av.xMin);
+    const logMax = Math.log10(av.xMax);
+    x = Math.pow(10, logMin + xFrac * (logMax - logMin));
+  } else {
+    x = av.xMin + xFrac * (av.xMax - av.xMin);
+  }
+
+  // Y (image y is inverted relative to plot y)
+  let y;
+  const yFrac = (py - c.ymax.py) / (c.ymin.py - c.ymax.py);
+  if (state.scale.y === 'log') {
+    const logMin = Math.log10(av.yMin);
+    const logMax = Math.log10(av.yMax);
+    y = Math.pow(10, logMin + yFrac * (logMax - logMin));
+  } else {
+    y = av.yMin + yFrac * (av.yMax - av.yMin);
+  }
+
+  return { x, y };
+}
+
+function recalcAll() {
+  if (!isCalibrated()) return;
+  state.curves.forEach(curve => {
+    curve.points.forEach(pt => {
+      const { x, y } = pixelToData(pt.px, pt.py);
+      pt.x = x; pt.y = y;
+    });
+  });
+  renderDataTable();
+  redraw();
+}
+
+// ── Drawing ────────────────────────────────────────────────────────────────
+function redraw() {
+  if (!state.image) return;
+  // Redraw image
+  plotCtx.clearRect(0, 0, plotCanvas.width, plotCanvas.height);
+  plotCtx.drawImage(state.image, 0, 0);
+
+  // Overlay
+  overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+  // Calibration markers
+  const calColors = { xmin: '#f59e0b', xmax: '#f59e0b', ymin: '#06b6d4', ymax: '#06b6d4' };
+  const calLabels = { xmin: 'Xmin', xmax: 'Xmax', ymin: 'Ymin', ymax: 'Ymax' };
+  Object.entries(state.calibration).forEach(([key, pt]) => {
+    if (!pt) return;
+    drawCrossHair(overlayCtx, pt.px, pt.py, calColors[key], calLabels[key]);
+  });
+
+  // Curve points
+  state.curves.forEach(curve => {
+    curve.points.forEach((pt, i) => {
+      drawPoint(overlayCtx, pt.px, pt.py, curve.color, curve.id === state.activeCurveId);
+    });
+  });
+}
+
+function drawCrossHair(ctx, x, y, color, label) {
+  const r = 8;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x - r, y); ctx.lineTo(x + r, y);
+  ctx.moveTo(x, y - r); ctx.lineTo(x, y + r);
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillText(label, x + r + 2, y - r + 2);
+  ctx.restore();
+}
+
+function drawPoint(ctx, x, y, color, isActive) {
+  const r = isActive ? 5 : 4;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ── Data table ─────────────────────────────────────────────────────────────
+function renderDataTable() {
+  dataTableBody.innerHTML = '';
+  let total = 0;
+  state.curves.forEach(curve => {
+    curve.points.forEach((pt, i) => {
+      total++;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="color-swatch" style="background:${curve.color}"></span> ${escHtml(curve.name)}</td>
+        <td>${fmtNum(pt.x)}</td>
+        <td>${fmtNum(pt.y)}</td>
+        <td><button class="del-pt" data-curve="${curve.id}" data-idx="${i}" title="Remove point">×</button></td>
+      `;
+      tr.querySelector('.del-pt').addEventListener('click', () => {
+        curve.points.splice(i, 1);
+        renderCurveList();
+        renderDataTable();
+        redraw();
+      });
+      dataTableBody.appendChild(tr);
+    });
+  });
+  totalCount.textContent = `${total} pt${total !== 1 ? 's' : ''}`;
+  exportCsvBtn.disabled = total === 0;
+  clearAllBtn.disabled  = total === 0;
+}
+
+// ── Export CSV ─────────────────────────────────────────────────────────────
+exportCsvBtn.addEventListener('click', () => {
+  const rows = ['Curve,X,Y'];
+  state.curves.forEach(curve => {
+    curve.points.forEach(pt => {
+      rows.push(`"${curve.name.replace(/"/g,'""')}",${pt.x},${pt.y}`);
+    });
+  });
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'digitized_data.csv';
+  a.click();
+});
+
+// ── Clear all ──────────────────────────────────────────────────────────────
+clearAllBtn.addEventListener('click', () => {
+  if (!confirm('Clear all digitized points?')) return;
+  state.curves.forEach(c => c.points = []);
+  renderCurveList();
+  renderDataTable();
+  redraw();
+});
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function fmtNum(n) {
+  if (n === undefined || n === null || isNaN(n)) return '—';
+  if (Math.abs(n) >= 1e4 || (Math.abs(n) < 1e-3 && n !== 0)) return n.toExponential(4);
+  return parseFloat(n.toPrecision(6)).toString();
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+renderCurveList();
+renderDataTable();
+</script>
+</body>
+</html>
