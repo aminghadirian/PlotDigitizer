@@ -895,9 +895,9 @@ function pixelToData(px, py) {
   if (state.scale.y === 'log') {
     const logMin = Math.log10(av.yMin);
     const logMax = Math.log10(av.yMax);
-    y = Math.pow(10, logMin + yFrac * (logMax - logMin));
+    y = Math.pow(10, logMax + yFrac * (logMin - logMax));
   } else {
-    y = av.yMin + yFrac * (av.yMax - av.yMin);
+    y = av.yMax + yFrac * (av.yMin - av.yMax);
   }
 
   return { x, y };
