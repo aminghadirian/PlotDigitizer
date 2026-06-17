@@ -477,7 +477,7 @@
           <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
           <polyline points="21 15 16 10 5 21"/>
         </svg>
-        <p><strong>Click or drag</strong> an image here<br>PNG, JPG, BMP, SVG…</p>
+        <p><strong>Click, drag, or paste</strong> (Ctrl+V) an image<br>PNG, JPG, BMP, SVG…</p>
       </div>
       <input type="file" id="fileInput" accept="image/*">
     </div>
@@ -682,6 +682,19 @@ uploadArea.addEventListener('drop', e => {
 
 fileInput.addEventListener('change', () => {
   if (fileInput.files[0]) loadImage(fileInput.files[0]);
+});
+
+// ── Paste image from clipboard (Ctrl+V) ────────────────────────────────────
+document.addEventListener('paste', e => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      if (file) { loadImage(file); e.preventDefault(); }
+      break;
+    }
+  }
 });
 
 function loadImage(file) {
